@@ -89,6 +89,16 @@ export async function connectToChrome(port: number, logger: BrowserLogger): Prom
   return client;
 }
 
+export async function connectToRemoteChrome(
+  host: string,
+  port: number,
+  logger: BrowserLogger,
+): Promise<ChromeClient> {
+  const client = await CDP({ host, port });
+  logger(`Connected to remote Chrome DevTools protocol at ${host}:${port}`);
+  return client;
+}
+
 function buildChromeFlags(headless: boolean): string[] {
   const flags = [
     '--disable-background-networking',

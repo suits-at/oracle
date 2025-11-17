@@ -3,7 +3,13 @@ import path from 'node:path';
 import os from 'node:os';
 import { resolveBrowserConfig } from './config.js';
 import type { BrowserRunOptions, BrowserRunResult, BrowserLogger, ChromeClient, BrowserAttachment } from './types.js';
-import { launchChrome, registerTerminationHooks, hideChromeWindow, connectToChrome } from './chromeLifecycle.js';
+import {
+  launchChrome,
+  registerTerminationHooks,
+  hideChromeWindow,
+  connectToChrome,
+  connectToRemoteChrome,
+} from './chromeLifecycle.js';
 import { syncCookies } from './cookies.js';
 import {
   navigateToChatGPT,
@@ -47,6 +53,11 @@ export async function runBrowserMode(options: BrowserRunOptions): Promise<Browse
         promptLength: promptText.length,
       })}`,
     );
+  }
+
+  // Remote Chrome mode - connect to existing browser
+  if (config.remoteChrome) {
+    return runRemoteBrowserMode(promptText, attachments, config, logger, options);
   }
 
   const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'oracle-browser-'));
@@ -226,6 +237,152 @@ export async function runBrowserMode(options: BrowserRunOptions): Promise<Browse
     } else if (!connectionClosedUnexpectedly) {
       logger(`Chrome left running on port ${chrome.port} with profile ${userDataDir}`);
     }
+  }
+}
+
+async function runRemoteBrowserMode(
+  promptText: string,
+  attachments: BrowserAttachment[],
+  config: ReturnType<typeof resolveBrowserConfig>,
+  logger: BrowserLogger,
+  options: BrowserRunOptions,
+): Promise<BrowserRunResult> {
+  const { host, port } = config.remoteChrome!;
+  logger(`Connecting to remote Chrome at ${host}:${port}`);
+
+  let client: ChromeClient | null = null;
+  const startedAt = Date.now();
+  let answerText = '';
+  let answerMarkdown = '';
+  let answerHtml = '';
+  let connectionClosedUnexpectedly = false;
+  let stopThinkingMonitor: (() => void) | null = null;
+
+  try {
+    client = await connectToRemoteChrome(host, port, logger);
+    const markConnectionLost = () => {
+      connectionClosedUnexpectedly = true;
+    };
+    client.on('disconnect', markConnectionLost);
+    const { Network, Page, Runtime, Input, DOM } = client;
+
+    const domainEnablers = [Network.enable({}), Page.enable(), Runtime.enable()];
+    if (DOM && typeof DOM.enable === 'function') {
+      domainEnablers.push(DOM.enable());
+    }
+    await Promise.all(domainEnablers);
+
+    // Skip cookie sync for remote Chrome - it already has cookies
+    logger('Skipping cookie sync for remote Chrome (using existing session)');
+
+    await navigateToChatGPT(Page, Runtime, config.url, logger);
+    await ensureNotBlocked(Runtime, config.headless, logger);
+    await ensurePromptReady(Runtime, config.inputTimeoutMs, logger);
+    logger(`Prompt textarea ready (initial focus, ${promptText.length.toLocaleString()} chars queued)`);
+
+    if (config.desiredModel) {
+      await withRetries(
+        () => ensureModelSelection(Runtime, config.desiredModel as string, logger),
+        {
+          retries: 2,
+          delayMs: 300,
+          onRetry: (attempt, error) => {
+            if (options.verbose) {
+              logger(`[retry] Model picker attempt ${attempt + 1}: ${error instanceof Error ? error.message : error}`);
+            }
+          },
+        },
+      );
+      await ensurePromptReady(Runtime, config.inputTimeoutMs, logger);
+      logger(`Prompt textarea ready (after model switch, ${promptText.length.toLocaleString()} chars queued)`);
+    }
+
+    if (attachments.length > 0) {
+      if (!DOM) {
+        throw new Error('Chrome DOM domain unavailable while uploading attachments.');
+      }
+      for (const attachment of attachments) {
+        logger(`Uploading attachment: ${attachment.displayPath}`);
+        await uploadAttachmentFile({ runtime: Runtime, dom: DOM }, attachment, logger);
+      }
+      const waitBudget = Math.max(config.inputTimeoutMs ?? 30_000, 30_000);
+      await waitForAttachmentCompletion(Runtime, waitBudget, logger);
+      logger('All attachments uploaded');
+    }
+
+    await submitPrompt({ runtime: Runtime, input: Input }, promptText, logger);
+    stopThinkingMonitor = startThinkingStatusMonitor(Runtime, logger, options.verbose ?? false);
+    const answer = await waitForAssistantResponse(Runtime, config.timeoutMs, logger);
+    answerText = answer.text;
+    answerHtml = answer.html ?? '';
+
+    const copiedMarkdown = await withRetries(
+      async () => {
+        const attempt = await captureAssistantMarkdown(Runtime, answer.meta, logger);
+        if (!attempt) {
+          throw new Error('copy-missing');
+        }
+        return attempt;
+      },
+      {
+        retries: 2,
+        delayMs: 350,
+        onRetry: (attempt, error) => {
+          if (options.verbose) {
+            logger(
+              `[retry] Markdown capture attempt ${attempt + 1}: ${error instanceof Error ? error.message : error}`,
+            );
+          }
+        },
+      },
+    ).catch(() => null);
+
+    answerMarkdown = copiedMarkdown ?? answerText;
+    stopThinkingMonitor?.();
+
+    const durationMs = Date.now() - startedAt;
+    const answerChars = answerText.length;
+    const answerTokens = estimateTokenCount(answerMarkdown);
+
+    return {
+      answerText,
+      answerMarkdown,
+      answerHtml: answerHtml.length > 0 ? answerHtml : undefined,
+      tookMs: durationMs,
+      answerTokens,
+      answerChars,
+      chromePid: undefined,
+      chromePort: port,
+      userDataDir: undefined,
+    };
+  } catch (error) {
+    const normalizedError = error instanceof Error ? error : new Error(String(error));
+    stopThinkingMonitor?.();
+    const socketClosed = connectionClosedUnexpectedly || isWebSocketClosureError(normalizedError);
+    connectionClosedUnexpectedly = connectionClosedUnexpectedly || socketClosed;
+
+    if (!socketClosed) {
+      logger(`Failed to complete ChatGPT run: ${normalizedError.message}`);
+      if ((config.debug || process.env.CHATGPT_DEVTOOLS_TRACE === '1') && normalizedError.stack) {
+        logger(normalizedError.stack);
+      }
+      throw normalizedError;
+    }
+
+    throw new Error('Remote Chrome connection lost before Oracle finished.', {
+      cause: normalizedError,
+    });
+  } finally {
+    try {
+      if (!connectionClosedUnexpectedly && client) {
+        await client.close();
+      }
+    } catch {
+      // ignore
+    }
+    // Don't kill remote Chrome - it's not ours to manage
+    const totalSeconds = (Date.now() - startedAt) / 1000;
+    logger(`Remote session complete • ${totalSeconds.toFixed(1)}s total`);
   }
 }
 

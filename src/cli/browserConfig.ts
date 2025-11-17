@@ -23,6 +23,7 @@ export interface BrowserFlagOptions {
   browserKeepBrowser?: boolean;
   browserModelLabel?: string;
   browserAllowCookieErrors?: boolean;
+  remoteChrome?: string;
   model: ModelName;
   verbose?: boolean;
 }
@@ -32,6 +33,20 @@ export function buildBrowserConfig(options: BrowserFlagOptions): BrowserSessionC
   const normalizedOverride = desiredModelOverride?.toLowerCase() ?? '';
   const baseModel = options.model.toLowerCase();
   const shouldUseOverride = normalizedOverride.length > 0 && normalizedOverride !== baseModel;
+
+  let remoteChrome: { host: string; port: number } | undefined;
+  if (options.remoteChrome) {
+    const parts = options.remoteChrome.split(':');
+    if (parts.length === 2) {
+      remoteChrome = {
+        host: parts[0],
+        port: parseInt(parts[1], 10),
+      };
+    } else {
+      throw new Error(`Invalid remote-chrome format: ${options.remoteChrome}. Expected host:port`);
+    }
+  }
+
   return {
     chromeProfile: options.browserChromeProfile ?? DEFAULT_CHROME_PROFILE,
     chromePath: options.browserChromePath ?? null,
@@ -47,6 +62,7 @@ export function buildBrowserConfig(options: BrowserFlagOptions): BrowserSessionC
     desiredModel: shouldUseOverride ? desiredModelOverride : mapModelToBrowserLabel(options.model),
     debug: options.verbose ? true : undefined,
     allowCookieErrors: options.browserAllowCookieErrors ? true : undefined,
+    remoteChrome,
   };
 }
 

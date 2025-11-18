@@ -206,7 +206,7 @@ async function attemptSqliteRebuild(): Promise<boolean> {
   }
   const childEnv: NodeJS.ProcessEnv = { ...process.env };
   childEnv.npm_config_build_from_source = '1';
-  childEnv.PYTHON = childEnv.PYTHON ?? '/usr/bin/python3';
+  childEnv.PYTHON = childEnv.PYTHON ?? (process.platform === 'win32' ? 'python' : '/usr/bin/python3');
   console.warn('[oracle] Attempting to rebuild sqlite3 bindings automatically…');
   console.warn(
     `[oracle] Running: npm_config_build_from_source=1 PYTHON=${childEnv.PYTHON} ${pnpmCommand} ${args.join(' ')}`,

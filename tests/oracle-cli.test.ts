@@ -646,7 +646,6 @@ describe('oracle utility helpers', () => {
   });
 
   testNonWindows('readFiles deduplicates and expands directories', async () => {
-    if (process.platform === 'win32') return;
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-'));
     try {
       const nestedDir = path.join(dir, 'nested');
@@ -675,7 +674,6 @@ describe('oracle utility helpers', () => {
   });
 
   testNonWindows('readFiles respects glob include/exclude syntax and size limits', async () => {
-    if (process.platform === 'win32') return;
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-glob-'));
     try {
       const nestedDir = path.join(dir, 'src', 'nested');
@@ -695,7 +693,6 @@ describe('oracle utility helpers', () => {
   });
 
   testNonWindows('readFiles skips dotfiles by default when expanding directories', async () => {
-    if (process.platform === 'win32') return;
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-dot-'));
     try {
       const dotFile = path.join(dir, '.env');
@@ -727,7 +724,6 @@ describe('oracle utility helpers', () => {
   });
 
   testNonWindows('readFiles honors .gitignore when present', async () => {
-    if (process.platform === 'win32') return;
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-gitignore-'));
     try {
       const gitignore = path.join(dir, '.gitignore');
@@ -752,7 +748,6 @@ describe('oracle utility helpers', () => {
   });
 
   testNonWindows('readFiles honors nested .gitignore files', async () => {
-    if (process.platform === 'win32') return;
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-gitignore-nested-'));
     try {
       const subdir = path.join(dir, 'dist');

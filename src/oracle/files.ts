@@ -164,20 +164,38 @@ async function expandWithNativeGlob(partitioned: PartitionedFiles, cwd: string):
 
   const gitignoreSets = await loadGitignoreSets(cwd);
 
-  // fast-glob expects forward slashes even on Windows
-  const normalizedCwd = toPosix(cwd);
-
   const matches = (await fg(patterns, {
-    cwd: normalizedCwd,
+    cwd,
     absolute: false,
     dot: true,
     ignore: partitioned.excludePatterns,
     onlyFiles: true,
     followSymbolicLinks: false,
   })) as string[];
+
+  // Debug logging for Windows
+  if (process.env.ORACLE_DEBUG_GLOB) {
+    console.log('[DEBUG] expandWithNativeGlob:');
+    console.log('  cwd:', cwd);
+    console.log('  patterns:', patterns);
+    console.log('  raw matches from fg():', matches);
+  }
+
   const resolved = matches.map((match) => path.resolve(cwd, match));
+  if (process.env.ORACLE_DEBUG_GLOB) {
+    console.log('  resolved paths:', resolved);
+  }
+
   const filtered = resolved.filter((filePath) => !isGitignored(filePath, gitignoreSets));
+  if (process.env.ORACLE_DEBUG_GLOB) {
+    console.log('  after gitignore filter:', filtered);
+  }
+
   const finalFiles = dotfileOptIn ? filtered : filtered.filter((filePath) => !path.basename(filePath).startsWith('.'));
+  if (process.env.ORACLE_DEBUG_GLOB) {
+    console.log('  final files:', finalFiles);
+  }
+
   return Array.from(new Set(finalFiles));
 }
 

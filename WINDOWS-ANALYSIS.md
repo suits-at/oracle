@@ -766,3 +766,64 @@ separately if needed.
 **Commit**: 5797ae0
 **Status**: Should be fully functional on Windows (minus version test timeout)
 **Tests**: 230 → 239 passing (out of 240)
+
+---
+
+## 🔄 Current Session Status (2025-11-18 - In Progress)
+
+### Where We Are Now
+
+**Branch**: `windows-remote-chrome` @ commit `c9619a2`
+**Fork**: https://github.com/suits-at/oracle
+
+### Fixes Applied So Far (11 commits)
+
+1. ✅ **Python path detection** (e1afd69) - Uses `python` on Windows vs `/usr/bin/python3`
+2. ✅ **Build script** (814f6ba) - Replaced Unix commands with Node.js cross-platform script
+3. ✅ **Test cleanup** (e7b0d34, c591a0d) - Removed Windows test skips, enabled 8 file tests
+4. ✅ **Number formatting** (5797ae0) - Fixed locale issue (space vs comma separator)
+
+### Current Issue: fast-glob Pattern Matching
+
+**Status**: 8 file operation tests still failing on Windows with "No files matched"
+
+**Attempted Fix**: Normalized `cwd` parameter with `toPosix()` - didn't work, reverted.
+
+**Current Approach**: Added `ORACLE_DEBUG_GLOB` environment variable for detailed logging
+- Commit c9619a2 adds debug output to `src/oracle/files.ts`
+- Run with `$env:ORACLE_DEBUG_GLOB="1"; pnpm test` on Windows
+- Will show what patterns are generated and what fast-glob returns
+
+### Test Results Summary
+
+**Linux/WSL**: ✅ 36/36 oracle-cli tests passing
+**Windows**: ❌ 8/36 failing (all file operations) + 1 timeout
+
+**Failing tests** (all same root cause):
+- accepts directories passed via --file
+- readFiles deduplicates and expands directories
+- readFiles respects glob include/exclude syntax
+- readFiles skips dotfiles by default
+- readFiles honors .gitignore when present
+- readFiles honors nested .gitignore files
+- readFiles allows explicitly passed default-ignored dirs
+- readFiles logs and skips default-ignored dirs
+
+### Next Steps
+
+1. **Run debug test on Windows**: `$env:ORACLE_DEBUG_GLOB="1"; pnpm test oracle-cli.test.ts`
+2. **Analyze debug output**: Look for what patterns are passed to fast-glob and what it returns
+3. **Identify root cause**: Likely issue with how patterns are constructed from Windows paths
+4. **Fix and validate**: Apply fix and retest on Windows
+
+### Likely Root Causes to Investigate
+
+Based on the code:
+- Line 156: `makeDirectoryPattern(toPosixRelative(absDir, cwd))` - directory pattern construction
+- Line 155: `toPosixRelativeOrBasename(absPath, cwd)` - file pattern construction
+- Patterns might have issues when `cwd` contains backslashes but we convert relative paths to forward slashes
+
+**Session Transfer**: Moving to Windows for direct debugging and faster iteration.
+
+**Updated**: 2025-11-18 23:45 UTC
+**Status**: Ready for Windows debugging session

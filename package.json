@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && pnpm run build:vendor",
-    "build:vendor": "mkdir -p dist/vendor && cp -R vendor/oracle-notifier dist/vendor/oracle-notifier || true",
+    "build:vendor": "node scripts/build-vendor.js",
     "start": "pnpm run build && node ./dist/scripts/run-cli.js",
     "oracle": "pnpm start",
     "typecheck": "tsc --noEmit",

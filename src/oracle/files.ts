@@ -36,12 +36,12 @@ export async function readFiles(
     candidatePaths = await expandWithCustomFs(partitioned, fsModule);
   }
 
-  const allowedLiteralDirs = partitioned.literalDirectories
-    .map((dir) => path.resolve(dir))
-    .filter((dir) => DEFAULT_IGNORED_DIRS.includes(path.basename(dir)));
+  const resolvedLiteralDirs = new Set(partitioned.literalDirectories.map((dir) => path.resolve(dir)));
   const allowedLiteralFiles = partitioned.literalFiles.map((file) => path.resolve(file));
-  const resolvedLiteralDirs = new Set(allowedLiteralDirs);
-  const allowedPaths = new Set([...allowedLiteralDirs, ...allowedLiteralFiles]);
+  const literalDirsBypassingDefaultIgnores = Array.from(resolvedLiteralDirs).filter((dir) =>
+    pathHasDefaultIgnoredSegment(dir, cwd),
+  );
+  const allowedPaths = new Set([...literalDirsBypassingDefaultIgnores, ...allowedLiteralFiles]);
   const ignoredWhitelist = await buildIgnoredWhitelist(candidatePaths, cwd, fsModule);
   const ignoredLog = new Set<string>();
   const filteredCandidates = candidatePaths.filter((filePath) => {
@@ -240,6 +240,16 @@ async function buildIgnoredWhitelist(filePaths: string[], cwd: string, fsModule:
     }
   }
   return whitelist;
+}
+
+function pathHasDefaultIgnoredSegment(targetPath: string, cwd: string): boolean {
+  const absolute = path.resolve(targetPath);
+  const relative = path.relative(cwd, absolute);
+  if (!relative || relative === '') {
+    return DEFAULT_IGNORED_DIRS.includes(path.basename(absolute));
+  }
+  const parts = relative.split(path.sep).filter(Boolean);
+  return parts.some((segment) => DEFAULT_IGNORED_DIRS.includes(segment));
 }
 
 function findIgnoredAncestor(

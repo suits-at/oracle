@@ -9,6 +9,14 @@ import {
 import { delay } from '../utils.js';
 import { logDomFailure } from '../domDebug.js';
 
+const ENTER_KEY_EVENT = {
+  key: 'Enter',
+  code: 'Enter',
+  windowsVirtualKeyCode: 13,
+  nativeVirtualKeyCode: 13,
+} as const;
+const ENTER_KEY_TEXT = '\r';
+
 export async function submitPrompt(
   deps: { runtime: ChromeClient['Runtime']; input: ChromeClient['Input'] },
   prompt: string,
@@ -102,18 +110,14 @@ export async function submitPrompt(
   const clicked = await attemptSendButton(runtime);
   if (!clicked) {
     await input.dispatchKeyEvent({
-      type: 'rawKeyDown',
-      key: 'Enter',
-      code: 'Enter',
-      windowsVirtualKeyCode: 13,
-      nativeVirtualKeyCode: 13,
+      type: 'keyDown',
+      ...ENTER_KEY_EVENT,
+      text: ENTER_KEY_TEXT,
+      unmodifiedText: ENTER_KEY_TEXT,
     });
     await input.dispatchKeyEvent({
       type: 'keyUp',
-      key: 'Enter',
-      code: 'Enter',
-      windowsVirtualKeyCode: 13,
-      nativeVirtualKeyCode: 13,
+      ...ENTER_KEY_EVENT,
     });
     logger('Submitted prompt via Enter key');
   } else {
@@ -190,4 +194,3 @@ async function verifyPromptCommitted(
   }
   throw new Error('Prompt did not appear in conversation before timeout (send may have failed)');
 }
-

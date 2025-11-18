@@ -33,5 +33,6 @@ export function resolveBrowserConfig(config: BrowserAutomationConfig | undefined
     chromePath: config?.chromePath ?? DEFAULT_BROWSER_CONFIG.chromePath,
     debug: config?.debug ?? DEFAULT_BROWSER_CONFIG.debug,
     allowCookieErrors: config?.allowCookieErrors ?? DEFAULT_BROWSER_CONFIG.allowCookieErrors,
+    remoteChrome: config?.remoteChrome ?? DEFAULT_BROWSER_CONFIG.remoteChrome,
   };
 }

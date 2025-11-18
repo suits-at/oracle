@@ -37,14 +37,18 @@ export function buildBrowserConfig(options: BrowserFlagOptions): BrowserSessionC
   let remoteChrome: { host: string; port: number } | undefined;
   if (options.remoteChrome) {
     const parts = options.remoteChrome.split(':');
-    if (parts.length === 2) {
-      remoteChrome = {
-        host: parts[0],
-        port: parseInt(parts[1], 10),
-      };
-    } else {
+    if (parts.length !== 2) {
       throw new Error(`Invalid remote-chrome format: ${options.remoteChrome}. Expected host:port`);
     }
+    const host = parts[0]?.trim();
+    const portValue = Number.parseInt(parts[1] ?? '', 10);
+    if (!host || !Number.isFinite(portValue) || portValue <= 0 || portValue > 65535) {
+      throw new Error(`Invalid remote-chrome port: ${options.remoteChrome}. Expected host:port`);
+    }
+    remoteChrome = {
+      host,
+      port: portValue,
+    };
   }
 
   return {

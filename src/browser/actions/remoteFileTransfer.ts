@@ -53,7 +53,6 @@ export async function uploadAttachmentViaDataTransfer(
         return { success: false, error: 'File input not found' };
       }
 
-      // Convert base64 to Blob
       const base64Data = ${JSON.stringify(base64Content)};
       const binaryString = atob(base64Data);
       const bytes = new Uint8Array(binaryString.length);
@@ -61,21 +60,42 @@ export async function uploadAttachmentViaDataTransfer(
         bytes[i] = binaryString.charCodeAt(i);
       }
       const blob = new Blob([bytes], { type: ${JSON.stringify(mimeType)} });
-
-      // Create File object
       const file = new File([blob], ${JSON.stringify(fileName)}, {
         type: ${JSON.stringify(mimeType)},
         lastModified: Date.now()
       });
 
-      // Create DataTransfer and assign to input
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(file);
-      fileInput.files = dataTransfer.files;
 
-      // Trigger change event
-      const event = new Event('change', { bubbles: true });
-      fileInput.dispatchEvent(event);
+      const proto = Object.getPrototypeOf(fileInput);
+      const descriptor = proto ? Object.getOwnPropertyDescriptor(proto, 'files') : null;
+      let assigned = false;
+      if (descriptor?.set) {
+        try {
+          descriptor.set.call(fileInput, dataTransfer.files);
+          assigned = true;
+        } catch {
+          assigned = false;
+        }
+      }
+      if (!assigned) {
+        try {
+          Object.defineProperty(fileInput, 'files', {
+            configurable: true,
+            get: () => dataTransfer.files,
+          });
+          assigned = true;
+        } catch {
+          assigned = false;
+        }
+      }
+      if (!assigned) {
+        return { success: false, error: 'Unable to assign FileList to input' };
+      }
+
+      fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
 
       return { success: true, fileName: file.name, size: file.size };
     })()
@@ -89,9 +109,7 @@ export async function uploadAttachmentViaDataTransfer(
   }
 
   logger(`File transferred: ${uploadResult.fileName} (${uploadResult.size} bytes)`);
-
-  // Give ChatGPT a moment to process the file
-  await delay(500);
+  await waitForAttachmentRecognition(runtime, fileName, 10_000);
   logger(`Attachment queued: ${attachment.displayPath}`);
 }
 

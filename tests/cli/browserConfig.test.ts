@@ -74,6 +74,23 @@ describe('buildBrowserConfig', () => {
     });
     expect(config.desiredModel).toBe('ChatGPT 5.1 Instant');
   });
+
+  test('parses remote Chrome host:port', () => {
+    const config = buildBrowserConfig({
+      model: 'gpt-5-pro',
+      remoteChrome: 'chatbox.local:9333',
+    });
+    expect(config.remoteChrome).toEqual({ host: 'chatbox.local', port: 9333 });
+  });
+
+  test('throws when remote Chrome port is invalid', () => {
+    expect(() =>
+      buildBrowserConfig({
+        model: 'gpt-5-pro',
+        remoteChrome: 'chatbox.local:notaport',
+      }),
+    ).toThrow(/Invalid remote-chrome port/);
+  });
 });
 
 describe('resolveBrowserModelLabel', () => {

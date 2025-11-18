@@ -89,14 +89,51 @@ export async function connectToChrome(port: number, logger: BrowserLogger): Prom
   return client;
 }
 
+export interface RemoteChromeConnection {
+  client: ChromeClient;
+  targetId?: string;
+}
+
 export async function connectToRemoteChrome(
   host: string,
   port: number,
   logger: BrowserLogger,
-): Promise<ChromeClient> {
-  const client = await CDP({ host, port });
+  targetUrl?: string,
+): Promise<RemoteChromeConnection> {
+  if (targetUrl) {
+    try {
+      const target = await CDP.New({ host, port, url: targetUrl });
+      const client = await CDP({ host, port, target: target.id });
+      logger(`Opened dedicated remote Chrome tab targeting ${targetUrl}`);
+      return { client, targetId: target.id };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger(`Failed to open dedicated remote Chrome tab (${message}); falling back to first target.`);
+    }
+  }
+  const fallbackClient = await CDP({ host, port });
   logger(`Connected to remote Chrome DevTools protocol at ${host}:${port}`);
-  return client;
+  return { client: fallbackClient };
+}
+
+export async function closeRemoteChromeTarget(
+  host: string,
+  port: number,
+  targetId: string | undefined,
+  logger: BrowserLogger,
+): Promise<void> {
+  if (!targetId) {
+    return;
+  }
+  try {
+    await CDP.Close({ host, port, id: targetId });
+    if (logger.verbose) {
+      logger(`Closed remote Chrome tab ${targetId}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger(`Failed to close remote Chrome tab ${targetId}: ${message}`);
+  }
 }
 
 function buildChromeFlags(headless: boolean): string[] {

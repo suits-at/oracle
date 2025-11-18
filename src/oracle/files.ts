@@ -212,12 +212,20 @@ async function loadGitignoreSets(cwd: string): Promise<GitignoreSet[]> {
 }
 
 function isGitignored(filePath: string, sets: GitignoreSet[]): boolean {
+  // Normalize file path to use consistent separators for comparison
+  const normalizedFilePath = toPosix(filePath);
+
   for (const { dir, patterns } of sets) {
-    if (!filePath.startsWith(dir)) {
+    // Normalize dir path as well
+    const normalizedDir = toPosix(dir);
+
+    if (!normalizedFilePath.startsWith(normalizedDir)) {
       continue;
     }
     const relative = path.relative(dir, filePath) || path.basename(filePath);
-    if (matchesAny(relative, patterns)) {
+    // Normalize to forward slashes for cross-platform gitignore matching
+    const normalizedRelative = toPosix(relative);
+    if (matchesAny(normalizedRelative, patterns)) {
       return true;
     }
   }

@@ -125,12 +125,20 @@ async function partitionFileInputs(
       continue;
     }
 
-    if (fg.isDynamicPattern(raw)) {
+    // Check for absolute paths before checking isDynamicPattern
+    // Windows absolute paths with backslashes (C:\...) are incorrectly detected as dynamic patterns
+    // because backslashes are escape characters in glob syntax
+    const isAbsolutePath = path.isAbsolute(raw);
+
+    // Only check for dynamic patterns if it's not an absolute path
+    const isDynamic = !isAbsolutePath && fg.isDynamicPattern(raw);
+
+    if (isDynamic) {
       result.globPatterns.push(normalizeGlob(raw, cwd));
       continue;
     }
 
-    const absolutePath = path.isAbsolute(raw) ? raw : path.resolve(cwd, raw);
+    const absolutePath = isAbsolutePath ? raw : path.resolve(cwd, raw);
     let stats: FsStats;
     try {
       stats = await fsModule.stat(absolutePath);
@@ -173,28 +181,9 @@ async function expandWithNativeGlob(partitioned: PartitionedFiles, cwd: string):
     followSymbolicLinks: false,
   })) as string[];
 
-  // Debug logging for Windows
-  if (process.env.ORACLE_DEBUG_GLOB) {
-    console.log('[DEBUG] expandWithNativeGlob:');
-    console.log('  cwd:', cwd);
-    console.log('  patterns:', patterns);
-    console.log('  raw matches from fg():', matches);
-  }
-
   const resolved = matches.map((match) => path.resolve(cwd, match));
-  if (process.env.ORACLE_DEBUG_GLOB) {
-    console.log('  resolved paths:', resolved);
-  }
-
   const filtered = resolved.filter((filePath) => !isGitignored(filePath, gitignoreSets));
-  if (process.env.ORACLE_DEBUG_GLOB) {
-    console.log('  after gitignore filter:', filtered);
-  }
-
   const finalFiles = dotfileOptIn ? filtered : filtered.filter((filePath) => !path.basename(filePath).startsWith('.'));
-  if (process.env.ORACLE_DEBUG_GLOB) {
-    console.log('  final files:', finalFiles);
-  }
 
   return Array.from(new Set(finalFiles));
 }

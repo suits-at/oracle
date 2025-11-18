@@ -622,3 +622,56 @@ When you test on Windows, these tests will either:
 
 **Updated**: 2025-11-18 23:30 UTC (post-test-enablement)
 **Commits**: e1afd69 (Python fix) → e7b0d34 (cleanup) → c591a0d (tests enabled)
+
+---
+
+## Critical Discovery: Build Script Blocker (2025-11-18)
+
+### 🚨 New Critical Issue Found During Windows Testing
+
+**Issue**: `pnpm install` failed on Windows during the `prepare` lifecycle hook
+
+**Root Cause**: `build:vendor` script used Unix shell commands:
+```json
+"build:vendor": "mkdir -p dist/vendor && cp -R vendor/oracle-notifier dist/vendor/oracle-notifier || true"
+```
+
+**Why it failed on Windows**:
+- `mkdir -p` → Not available in Windows CMD (syntax differs)
+- `cp -R` → Not available in Windows (should use `xcopy` or `copy`)
+- `|| true` → Unix shell syntax, doesn't work in CMD
+
+**Impact**: 
+- Blocked installation completely on Windows
+- This was not in original analysis (added to main after rebase)
+- Would affect anyone trying `npm install` or `pnpm install`
+
+### ✅ Fix Applied (commit 814f6ba)
+
+**Solution**: Replace shell commands with cross-platform Node.js script
+
+**New approach**:
+```json
+"build:vendor": "node scripts/build-vendor.js"
+```
+
+**Script features** (scripts/build-vendor.js):
+- Uses Node.js `fs.cpSync()` and `fs.mkdirSync()` (works everywhere)
+- Gracefully skips if vendor/oracle-notifier missing (macOS-only)
+- Never fails the build (vendor copy is optional)
+- Clear logging for debugging
+
+**Testing**:
+- ✅ Works on Linux/WSL
+- ✅ Handles missing vendor directory gracefully
+- ⏳ Ready for Windows validation
+
+### Lesson Learned
+
+**Always check after rebasing!** Main branch had introduced this Unix-specific 
+script between when we created the analysis and when we rebased. This is why
+the original WINDOWS-ANALYSIS.md missed it.
+
+**Updated**: 2025-11-18 23:35 UTC (post-build-fix)
+**Commit**: 814f6ba
+**Status**: Installation should now work on Windows

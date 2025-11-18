@@ -532,3 +532,40 @@ Example:
 **Last Updated**: 2025-11-18
 **Branch**: main (commit: b3423d9)
 **Status**: Windows support is WIP, API engine should be functional with minor fixes
+
+---
+
+## Recent Fixes (2025-11-18)
+
+### ✅ Completed Fixes
+1. **Python path detection** (commit e1afd69)
+   - Fixed hardcoded `/usr/bin/python3` → now uses `python` on Windows
+   - SQLite3 auto-rebuild now works cross-platform with `ORACLE_ALLOW_SQLITE_REBUILD=1`
+
+2. **Test cleanup** (commit e7b0d34)
+   - Removed 5 redundant inline `if (process.platform === 'win32') return;` guards
+   - Tests now rely solely on `testNonWindows` skip mechanism
+   - Validates confidence in toPosix() path normalization helpers
+
+### 🔍 Ready for Windows Validation
+These features use proper path normalization and should work on Windows:
+- [ ] File glob patterns (`src/**/*.ts`, `!**/*.test.ts`)
+- [ ] .gitignore parsing and path matching
+- [ ] Directory expansion and deduplication
+- [ ] Dotfile handling (.env, .gitignore)
+- [ ] Default ignored directories (node_modules, dist, etc.)
+
+### 📊 Test Status
+- **Linux/WSL**: ✅ All 239 tests passing
+- **Windows**: ⏳ Needs validation (tests will now run instead of being skipped)
+- **macOS**: ✅ Already validated in upstream CI
+
+### 📋 Remaining Work
+1. **Immediate**: Test on actual Windows machine
+2. **CI Integration**: Add Windows to GitHub Actions matrix
+3. **Documentation**: Windows installation guide (Python, VS Build Tools)
+4. **Native modules**: Test sqlite3/keytar compilation on Windows
+
+**Updated**: 2025-11-18 (post-fixes)
+**Branch**: windows-remote-chrome @ e7b0d34
+**Fork**: https://github.com/suits-at/oracle

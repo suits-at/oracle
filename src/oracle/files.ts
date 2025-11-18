@@ -164,8 +164,11 @@ async function expandWithNativeGlob(partitioned: PartitionedFiles, cwd: string):
 
   const gitignoreSets = await loadGitignoreSets(cwd);
 
+  // fast-glob expects forward slashes even on Windows
+  const normalizedCwd = toPosix(cwd);
+
   const matches = (await fg(patterns, {
-    cwd,
+    cwd: normalizedCwd,
     absolute: false,
     dot: true,
     ignore: partitioned.excludePatterns,

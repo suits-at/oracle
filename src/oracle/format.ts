@@ -19,7 +19,8 @@ export function formatNumber(
     return 'n/a';
   }
   const suffix = estimated ? ' (est.)' : '';
-  return `${value.toLocaleString()}${suffix}`;
+  // Use en-US locale for consistent formatting across platforms (comma separator)
+  return `${value.toLocaleString('en-US')}${suffix}`;
 }
 
 export function formatElapsed(ms: number): string {

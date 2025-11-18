@@ -569,3 +569,56 @@ These features use proper path normalization and should work on Windows:
 **Updated**: 2025-11-18 (post-fixes)
 **Branch**: windows-remote-chrome @ e7b0d34
 **Fork**: https://github.com/suits-at/oracle
+
+---
+
+## Latest Progress (2025-11-18 - Second Update)
+
+### 🎯 Major Milestone: Windows Tests Enabled!
+
+**Commit c591a0d**: Removed all Windows test skips - tests now run on all platforms
+
+#### What Changed
+Previously, 8 file operation tests were skipped on Windows via:
+```typescript
+const testNonWindows = process.platform === 'win32' ? test.skip : test;
+```
+
+This has been **completely removed**. All tests now run on Windows!
+
+#### Enabled Tests (8 total)
+✅ accepts directories passed via --file
+✅ readFiles deduplicates and expands directories  
+✅ readFiles respects glob include/exclude syntax
+✅ readFiles skips dotfiles by default
+✅ readFiles honors .gitignore when present
+✅ readFiles honors nested .gitignore files
+✅ readFiles allows explicitly passed default-ignored dirs
+✅ readFiles logs and skips default-ignored dirs
+
+#### Validation Status
+- **Linux/WSL**: ✅ All 36 oracle-cli tests passing
+- **Windows**: 🔄 **Ready for your testing!**
+
+These tests validate:
+- Glob patterns with includes/excludes (`src/**/*.ts`, `!**/*.test.ts`)
+- .gitignore file parsing and path matching
+- Directory expansion and file deduplication
+- Dotfile filtering (`.env`, `.gitignore`)
+- Default ignored directories (`node_modules`, `dist`, `coverage`)
+- Cross-platform path handling
+
+#### Technical Confidence
+**High** - Path normalization is comprehensive:
+- All glob patterns run through `normalizeGlob()` → `toPosix()`
+- File display paths use `toPosixRelative()`
+- Gitignore patterns normalized with backslash replacement
+- `fast-glob` library handles normalized paths correctly
+
+#### Next: Real Windows Testing
+When you test on Windows, these tests will either:
+1. ✅ **Pass** → Path normalization works perfectly, ship it!
+2. ❌ **Fail** → We'll see specific error messages and fix them
+
+**Updated**: 2025-11-18 23:30 UTC (post-test-enablement)
+**Commits**: e1afd69 (Python fix) → e7b0d34 (cleanup) → c591a0d (tests enabled)

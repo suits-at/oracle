@@ -29,8 +29,6 @@ import type {
   OracleRequestBody,
 } from '../src/oracle.ts';
 
-const testNonWindows = process.platform === 'win32' ? test.skip : test;
-
 chalk.level = 0;
 
 type TempFile = { dir: string; filePath: string };
@@ -523,7 +521,7 @@ describe('runOracle file reports', () => {
     expect(logs.find((line) => line === 'File Token Usage')).toBeDefined();
   });
 
-  testNonWindows('accepts directories passed via --file', async () => {
+  test('accepts directories passed via --file', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-dir-'));
     const nestedDir = path.join(dir, 'notes');
     await mkdir(nestedDir, { recursive: true });
@@ -645,7 +643,7 @@ describe('oracle utility helpers', () => {
     expect(() => parseIntOption('not-a-number')).toThrow('Value must be an integer.');
   });
 
-  testNonWindows('readFiles deduplicates and expands directories', async () => {
+  test('readFiles deduplicates and expands directories', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-'));
     try {
       const nestedDir = path.join(dir, 'nested');
@@ -673,7 +671,7 @@ describe('oracle utility helpers', () => {
     }
   });
 
-  testNonWindows('readFiles respects glob include/exclude syntax and size limits', async () => {
+  test('readFiles respects glob include/exclude syntax and size limits', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-glob-'));
     try {
       const nestedDir = path.join(dir, 'src', 'nested');
@@ -692,7 +690,7 @@ describe('oracle utility helpers', () => {
     }
   });
 
-  testNonWindows('readFiles skips dotfiles by default when expanding directories', async () => {
+  test('readFiles skips dotfiles by default when expanding directories', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-dot-'));
     try {
       const dotFile = path.join(dir, '.env');
@@ -723,7 +721,7 @@ describe('oracle utility helpers', () => {
     }
   });
 
-  testNonWindows('readFiles honors .gitignore when present', async () => {
+  test('readFiles honors .gitignore when present', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-gitignore-'));
     try {
       const gitignore = path.join(dir, '.gitignore');
@@ -747,7 +745,7 @@ describe('oracle utility helpers', () => {
     }
   });
 
-  testNonWindows('readFiles honors nested .gitignore files', async () => {
+  test('readFiles honors nested .gitignore files', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-gitignore-nested-'));
     try {
       const subdir = path.join(dir, 'dist');
@@ -789,7 +787,7 @@ describe('oracle utility helpers', () => {
     }
   });
 
-  testNonWindows('readFiles allows explicitly passed default-ignored dirs', async () => {
+  test('readFiles allows explicitly passed default-ignored dirs', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-allow-default-'));
     try {
       const nodeModules = path.join(dir, 'node_modules');
@@ -805,7 +803,7 @@ describe('oracle utility helpers', () => {
     }
   });
 
-  testNonWindows('readFiles logs and skips default-ignored dirs under project roots', async () => {
+  test('readFiles logs and skips default-ignored dirs under project roots', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'oracle-readfiles-ignore-logs-'));
     const ignoredDirs = ['node_modules', 'dist', 'coverage'];
     try {

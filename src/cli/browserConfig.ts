@@ -42,8 +42,13 @@ export function buildBrowserConfig(options: BrowserFlagOptions): BrowserSessionC
     }
     const host = parts[0]?.trim();
     const portValue = Number.parseInt(parts[1] ?? '', 10);
-    if (!host || !Number.isFinite(portValue) || portValue <= 0 || portValue > 65535) {
-      throw new Error(`Invalid remote-chrome port: ${options.remoteChrome}. Expected host:port`);
+    if (!host) {
+      throw new Error(`Invalid remote-chrome host: ${options.remoteChrome}. Expected host:port`);
+    }
+    if (!Number.isFinite(portValue) || portValue <= 0 || portValue > 65535) {
+      throw new Error(
+        `Invalid remote-chrome port: "${parts[1]}". Expected a number between 1 and 65535.`
+      );
     }
     remoteChrome = {
       host,
